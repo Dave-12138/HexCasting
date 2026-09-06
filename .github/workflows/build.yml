@@ -1,0 +1,106 @@
+name: Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      hexmod-ref:
+        description: "HexMod branch, tag, or SHA to build"
+        required: false
+        type: string
+        default: "1.21"
+      paucal-ref:
+        description: "PAUCAL branch, tag, or SHA to build"
+        required: false
+        type: string
+        default: "1.21"
+
+permissions:
+  contents: read
+
+env:
+  JAVA_VERSION: "21"
+
+jobs:
+  build-paucal:
+    name: Build PAUCAL
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PAUCAL
+        uses: actions/checkout@v7
+        with:
+          repository: FallingColors/PAUCAL
+          ref: ${{ inputs.paucal-ref }}
+          path: PAUCAL
+          # gradle config runs git range queries (HEAD~..HEAD); needs full history
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Build with Gradle
+        working-directory: PAUCAL
+        run: |
+          chmod +x gradlew
+          ./gradlew build
+
+      - name: Stage artifacts
+        working-directory: PAUCAL
+        run: |
+          mkdir -p dist
+          find Common Fabric Neoforge -path '*/build/libs/*.jar' -exec cp {} dist/ \;
+          rm -f dist/*-sources.jar dist/*-javadoc.jar dist/*-shadow.jar dist/*-dev.jar dist/*-dev-shadow.jar
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: paucal-build
+          path: PAUCAL/dist
+          retention-days: 30
+
+  build-hexmod:
+    name: Build HexMod
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout HexMod
+        uses: actions/checkout@v7
+        with:
+          repository: FallingColors/HexMod
+          ref: ${{ inputs.hexmod-ref }}
+          path: HexMod
+          # gradle config runs git range queries (HEAD~..HEAD); needs full history
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Build with Gradle
+        working-directory: HexMod
+        run: |
+          chmod +x gradlew
+          ./gradlew build
+
+      - name: Stage artifacts
+        working-directory: HexMod
+        run: |
+          mkdir -p dist
+          find Common Fabric Neoforge -path '*/build/libs/*.jar' -exec cp {} dist/ \;
+          rm -f dist/*-sources.jar dist/*-javadoc.jar dist/*-shadow.jar dist/*-dev.jar dist/*-dev-shadow.jar
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: hexmod-build
+          path: HexMod/dist
+          retention-days: 30
