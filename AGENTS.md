@@ -16,7 +16,7 @@
   1. `actions/checkout@v7` remote repo into `PAUCAL` / `HexMod`, `ref` from input (default `1.21`), **`fetch-depth: 0`** (see Pitfalls);
   2. `actions/setup-java@v6` temurin 21 + `gradle/actions/setup-gradle@v6`;
   3. `./gradlew build` (matches each upstream repo's own CI: HexMod `.github/workflows/pr.yml`, both Jenkinsfiles);
-  4. stage jars from `Common|Fabric|Neoforge/build/libs` into `dist`, dropping `-sources/-javadoc/-shadow/-dev*` jars; upload as `paucal-build` / `hexmod-build` (`upload-artifact@v7`, 30 days).
+  4. stage **usable mod files only** (this CI distributes runnable mods, not a library): each job whitelists the final runnable jars by name — HexMod: `hexcasting-fabric-*.jar` / `hexcasting-neoforge-*.jar`; PAUCAL: `paucal-*-fabric.jar` / `paucal-*-neoforge.jar` — scanning all three module dirs, so every architectury intermediate is dropped regardless of location (Common xplat jar, `*-transformProduction{Fabric,NeoForge}.jar` incl. bare `Common-transformProduction*.jar`, sources/javadoc/shadow/dev jars). Empty staging fails the job loudly. Upload as `paucal-build` / `hexmod-build` (`upload-artifact@v7`, 30 days).
 - Optional `publish-release` job: runs only when inputs `publish_release == 'true'` **and** `release_tag != ''`; `needs` both build jobs; downloads both artifacts; `softprops/action-gh-release@v3` creates/updates the release for the input tag and attaches all jars (`release/paucal/**`, `release/hexmod/**`). Release is created in **this** repo (GITHUB_TOKEN cannot write to the upstream repos).
 - Upstream build facts (verified against branch `1.21` heads, session-2025-09): both are Architectury Gradle multi-module projects (`Common`, `Fabric`, `Neoforge`), JDK 21, wrapper committed per repo.
   - HexMod (`gradle.properties`) pins `paucalVersion=0.7.1-pre-27`, `minecraftVersion=1.21.1`; consumes PAUCAL as `at.petra-k:paucal:<ver>+1.21.1-{common,fabric,neoforge}` from `https://maven.blamejared.com` (also declares `mavenLocal()`); builds standalone without a local PAUCAL checkout.
@@ -28,6 +28,7 @@
 - Keep `fetch-depth: 0` on every checkout step — do not remove it (see Pitfalls).
 
 ## Pitfalls
+- Artifact filtering is filename-suffix based: bare `*-dev.jar` does **not** match versions ending `-devel.jar`, and `*-shadow.jar` does not match `...-transformProductionFabric.jar`; when extending the filters always re-simulate with real filenames.
 - Shallow checkout breaks the build: Gradle configuration of `:Common` runs git range queries (`HEAD~..HEAD`); with the default `fetch-depth: 1` this fails with `fatal: ambiguous argument 'HEAD~..HEAD'`. HexMod's own `pr.yml` also uses `fetch-depth: 0`.
 - A local PAUCAL `publishToMavenLocal` does **not** reliably satisfy HexMod's pinned `0.7.1-pre-27` coordinate (PKPlugin/Jenkins versioning), so don't try to force a composite local-PAUCAL build.
 - Release publishing needs `permissions: contents: write` on the job (top level is `read`); rerunning the same tag updates the existing release and appends assets (softprops v3 behavior).

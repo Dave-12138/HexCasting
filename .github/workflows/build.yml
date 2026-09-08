@@ -65,8 +65,15 @@ jobs:
         working-directory: PAUCAL
         run: |
           mkdir -p dist
-          find Common Fabric Neoforge -path '*/build/libs/*.jar' -exec cp {} dist/ \;
-          rm -f dist/*-sources.jar dist/*-javadoc.jar dist/*-shadow.jar dist/*-dev.jar dist/*-dev-shadow.jar
+          # usable mod files only: whitelist the final Fabric/NeoForge runnable jars;
+          # this drops every architectury intermediate regardless of where it lives
+          # (Common xplat jar, *-transformProduction* incl. bare Common-transformProduction*)
+          find Common Fabric Neoforge -path '*/build/libs/*.jar' \
+            \( -name 'paucal-*-fabric.jar' -o -name 'paucal-*-neoforge.jar' \) \
+            ! -name '*-sources.jar' ! -name '*-javadoc.jar' \
+            ! -name '*-shadow.jar' ! -name '*-dev.jar' ! -name '*-dev-shadow.jar' \
+            -exec cp {} dist/ \;
+          find dist -name '*.jar' | grep -q . || { echo 'Error: no final mod jars staged' >&2; exit 1; }
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
@@ -107,8 +114,15 @@ jobs:
         working-directory: HexMod
         run: |
           mkdir -p dist
-          find Common Fabric Neoforge -path '*/build/libs/*.jar' -exec cp {} dist/ \;
-          rm -f dist/*-sources.jar dist/*-javadoc.jar dist/*-shadow.jar dist/*-dev.jar dist/*-dev-shadow.jar
+          # usable mod files only: whitelist the final Fabric/NeoForge runnable jars;
+          # this drops every architectury intermediate regardless of where it lives
+          # (Common xplat jar, *-transformProduction* incl. bare Common-transformProduction*)
+          find Common Fabric Neoforge -path '*/build/libs/*.jar' \
+            \( -name 'hexcasting-fabric-*.jar' -o -name 'hexcasting-neoforge-*.jar' \) \
+            ! -name '*-sources.jar' ! -name '*-javadoc.jar' \
+            ! -name '*-shadow.jar' ! -name '*-dev.jar' ! -name '*-dev-shadow.jar' \
+            -exec cp {} dist/ \;
+          find dist -name '*.jar' | grep -q . || { echo 'Error: no final mod jars staged' >&2; exit 1; }
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
